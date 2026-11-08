@@ -50,7 +50,7 @@ Both run on the original Game Boy and on the Game Boy Color. They detect the con
 The bee flies up a garden split into three lanes. Switch lanes to dodge spider webs and raindrops, and grab the pollen that sits in a free lane.
 
 * **Left** and **Right** switch lanes, **START** or **A** starts a run.
-* The garden speeds up the longer you last, from 1.2 to 3 pixels per frame.
+* The garden speeds up by half a pixel per frame every 10 seconds, from 1 to 3, and a rising chirp marks each step.
 * Distance is worth a point every ten pixels, each pollen is worth five, and every hundred points rings a chime.
 * Raindrops fall faster than the ground scrolls, so watch the lanes ahead.
 * Every row leaves at least one lane open, rows are spaced so two lane changes fit between them, and a raindrop never closes the only way through the row ahead.
@@ -111,6 +111,7 @@ halt ─► VBlank ─► OAM DMA, scroll (+ palette or score digits) ─► bui
 ### Petal Lanes
 
 * **A garden that never changes.** The background is a 32x32 tile map that wraps, so scrolling is a single register and nothing is written to the map while playing.
+* **Speeds that scroll evenly.** The garden only ever moves at whole or half pixels per frame, so every frame moves it the same distance (or alternates evenly, 1, 2, 1, 2). Any other speed makes the step vary from frame to frame, which reads as stutter. Raindrops keep their own accumulator at the ground speed plus half a pixel, so they move evenly too.
 * **A score bar that stays clean.** The score is the window layer pinned to the last 8 lines. One line interrupt, timed to land in the HBlank above the bar, switches objects off under it, so webs never draw over the digits.
 * **One pass over the items.** Moving, colliding and drawing happen in a single loop, and only items level with the bee are tested for contact.
 * **Fair by construction.** Rows are spaced by speed so two lane changes always fit between them, and a raindrop is never spawned into the only lane the row ahead leaves open, since it falls fast enough to catch up with it.

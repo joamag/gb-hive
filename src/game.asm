@@ -32,8 +32,15 @@ DEF PAD_START EQU %00001000
 DEF PAD_RIGHT EQU %00010000
 DEF PAD_LEFT  EQU %00100000
 
-DEF SPEED_START EQU $0133 ; 1.2 px per frame
+; Speeds are whole or half pixels per frame only: the garden then moves the
+; same distance every frame (or alternates evenly at x.5), any other value
+; makes the scroll step unevenly and the motion stutter.
+DEF SPEED_START EQU $0100 ; 1.0 px per frame, the title screen pace
+DEF SPEED_STEP  EQU $0080 ; +0.5 px per frame
 DEF SPEED_MAX   EQU $0300 ; 3.0 px per frame
+DEF DROP_EXTRA  EQU $0080 ; raindrops fall 0.5 px per frame faster
+DEF RAMP_TICKS  EQU 150   ; RAMP_TICKS * RAMP_COUNT frames per speed step
+DEF RAMP_COUNT  EQU 4     ; (600 frames, about 10 seconds)
 DEF DEAD_TEXT   EQU 30    ; frames before the game over text
 
 DEF NOTE_LANE   EQU 1798 ; ~524 Hz
@@ -299,7 +306,8 @@ StartGame:
     ldh [hSub], a
     ldh [hDropSub], a
     ldh [hAcc], a
-    ldh [hTick], a
+    ldh [hRampT], a
+    ldh [hRampN], a
     ldh [hTimer], a
     ld a, 48
     ldh [hNext], a
@@ -311,22 +319,29 @@ StartGame:
     jp PlayStart
 
 StatePlay:
-    ; speed ramps up by 1/256 px every 5 frames
-    ld hl, hTick
+    ; half a pixel faster every 10 seconds, announced with a rising chirp
+    ld hl, hRampT
     inc [hl]
     ld a, [hl]
-    cp 5
+    cp RAMP_TICKS
+    jr c, .noRamp
+    ld [hl], 0
+    inc l ; hRampN
+    inc [hl]
+    ld a, [hl]
+    cp RAMP_COUNT
     jr c, .noRamp
     ld [hl], 0
     ldh a, [hSpeed + 1]
     cp HIGH(SPEED_MAX)
     jr nc, .noRamp
     ldh a, [hSpeed]
-    add 1
+    add LOW(SPEED_STEP)
     ldh [hSpeed], a
     ldh a, [hSpeed + 1]
-    adc 0
+    adc HIGH(SPEED_STEP)
     ldh [hSpeed + 1], a
+    call PlayStart
 .noRamp:
 
     ; whole pixels the ground moves this frame
@@ -343,28 +358,19 @@ StatePlay:
     sub b
     ldh [hScrollY], a
 
-    ; raindrops fall 3/8 faster than the ground moves
-    ldh a, [hSpeed + 1]
-    ld h, a
+    ; raindrops run their own accumulator at the ground speed plus half a
+    ; pixel, so they also move evenly (2, 2, 2 or 2, 3, 2, 3, never 1, 3)
     ldh a, [hSpeed]
-    ld l, a
-    srl h
-    rr l
-    srl h
-    rr l
-    ld d, h
-    ld e, l
-    srl h
-    rr l
-    add hl, de
-    ldh a, [hDropSub]
-    add l
-    ldh [hDropSub], a
-    ld a, h
-    adc 0
+    add LOW(DROP_EXTRA)
     ld b, a
-    ldh a, [hDY]
+    ldh a, [hSpeed + 1]
+    adc HIGH(DROP_EXTRA)
+    ld c, a
+    ldh a, [hDropSub]
     add b
+    ldh [hDropSub], a
+    ld a, c
+    adc 0
     ldh [hDropDY], a
 
     ; a new row of items every few dozen pixels of ground
@@ -1267,7 +1273,8 @@ hPalReq: ds 1
 hScrollY: ds 1
 hSub: ds 1
 hSpeed: ds 2
-hTick: ds 1
+hRampT: ds 1 ; must stay right before hRampN
+hRampN: ds 1
 hDY: ds 1
 hDropSub: ds 1
 hDropDY: ds 1
