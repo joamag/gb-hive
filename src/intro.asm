@@ -1,8 +1,13 @@
-; Hive Solutions intro for the Game Boy (DMG and CGB).
+; Hive Solutions intro (DMG and CGB).
 ;
 ; A bee (the Hive logo in miniature) flies around the screen, lands and
 ; grows into the logo, then a second bee writes "HIVE SOLUTIONS" and keeps
 ; orbiting the logo, passing behind it on the far side of the orbit.
+;
+; It runs in two modes, picked by the caller:
+; - standalone (a = 0): never returns, START or A replays the intro
+; - embedded (a = 1): returns after one orbit, or right away on START or A,
+;   leaving a white screen for whatever comes next
 ;
 ; Efficiency notes:
 ; - the CPU sleeps in `halt` until VBlank, which is the only interrupt
@@ -15,7 +20,7 @@
 ; - the text is uncovered by sliding the window layer (one register)
 
 INCLUDE "hardware.inc"
-INCLUDE "assets.inc"
+INCLUDE "intro_assets.inc"
 
 DEF STATE_FADE_IN  EQU 0
 DEF STATE_FLY      EQU 1
@@ -30,42 +35,14 @@ DEF NOTE_G6 EQU 1964 ; 2048 - 131072 / 1568.0 Hz
 DEF LCDC_DEFAULT EQU LCDCF_ON | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_BG8000 \
     | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON
 
-SECTION "VBlank", ROM0[$0040]
-    reti
+SECTION "Intro", ROM0
 
-SECTION "Header", ROM0[$0100]
-    nop
-    jp Start
-    ds $0150 - @, 0 ; filled in by rgbfix
-
-SECTION "Start", ROM0[$0150]
-Start:
-    di
-    ld sp, $E000
-    cp BOOTUP_A_CGB
-    ld a, 0
-    jr nz, .dmg
-    inc a
-.dmg:
-    ldh [hIsCGB], a
-
-    ; the LCD may only be switched off during VBlank
-    ldh a, [rLCDC]
-    add a
-    jr nc, .lcdOff
-.waitVBlank:
-    ldh a, [rLY]
-    cp 144
-    jr c, .waitVBlank
+; in: a = 0 standalone (never returns), 1 embedded (returns when done)
+Intro::
+    ldh [hIntroMode], a
     xor a
-    ldh [rLCDC], a
-.lcdOff:
-
-    ; OAM DMA routine must run from HRAM
-    ld hl, DMARoutine
-    ld de, hDMA
-    ld bc, DMARoutineEnd - DMARoutine
-    call Copy
+    ldh [hIntroDone], a
+    call LcdOff
 
     ld hl, TileData
     ld de, _VRAM
@@ -191,9 +168,32 @@ MainLoop:
     ldh [hPalReq], a
 .noPalette:
 
+    ; embedded mode hands control back once its last frame is shown
+    ldh a, [hIntroDone]
+    and a
+    ret nz
+
     ; logic for the next frame
     ld hl, hFrame
     inc [hl]
+    call ReadButtons
+    ldh [hPressed], a
+    ldh a, [hIntroMode]
+    and a
+    jr z, .dispatch
+    ldh a, [hPressed]
+    and PADF_START | PADF_A
+    jr z, .dispatch
+    ; embedded skip: cut to white and leave on the next VBlank
+    xor a
+    ldh [hPalReq], a
+    ldh [hSCY], a
+    inc a
+    ldh [hIntroDone], a
+    ld hl, wShadowOAM
+    call FinishOAM
+    jr MainLoop
+.dispatch:
     ldh a, [hState]
     add a
     add LOW(StateTable)
@@ -310,9 +310,9 @@ StateWrite:
     ldh [hSCY], a
 .effectsDone:
 
-    call ReadButtons
+    ldh a, [hPressed]
     and PADF_START | PADF_A
-    jr nz, .replay
+    jr nz, .fadeOut
 
     call LoadPtr
     call DrawBee
@@ -323,10 +323,13 @@ StateWrite:
     cp HIGH(PathOrbitEnd)
     jr nz, .store
     ld de, PathOrbitLoop
+    ldh a, [hIntroMode]
+    and a
+    jr nz, .fadeOut ; embedded: one full orbit is enough
 .store:
     jp StorePtr
 
-.replay:
+.fadeOut:
     ld a, STATE_FADE_OUT
     ldh [hState], a
     xor a
@@ -339,11 +342,17 @@ StateFadeOut:
     ld a, [hl]
     inc [hl]
     cp 16
-    jr z, ResetScene
+    jr z, .done
     rrca
     ret c
     add PAL_REVEAL
     ldh [hPalReq], a
+    ret
+.done:
+    ldh a, [hIntroMode]
+    and a
+    jr z, ResetScene
+    ldh [hIntroDone], a
     ret
 
 ResetScene:
@@ -476,22 +485,7 @@ DrawBee:
     inc de
     inc de
     inc de
-    ; fall through
-
-; Hides the objects left over from the previous frame.
-; in: hl = first unused shadow OAM slot
-FinishOAM:
-    ldh a, [hOAMEnd]
-    ld b, a
-    ld a, l
-    ldh [hOAMEnd], a
-.loop:
-    cp b
-    ret nc
-    ld [hl], 0
-    add 4
-    ld l, a
-    jr .loop
+    jp FinishOAM
 
 ; Draws a solid square with 8x16 objects. The last column overlaps the one
 ; before it and the last row uses a partial height tile. With the Y flip
@@ -673,47 +667,9 @@ PlayNote2:
     ldh [rNR24], a
     ret
 
-; in: hl = source, de = destination, bc = length (non zero)
-Copy:
-    ld a, [hl+]
-    ld [de], a
-    inc de
-    dec bc
-    ld a, b
-    or c
-    jr nz, Copy
-    ret
-
-; in: hl = destination, bc = length (non zero), d = value
-Fill:
-    ld a, d
-    ld [hl+], a
-    dec bc
-    ld a, b
-    or c
-    jr nz, Fill
-    ret
-
-SECTION "DMA routine", ROM0
-DMARoutine:
-LOAD "DMA HRAM", HRAM
-; in: a = high byte of the source (shadow OAM)
-hDMA:
-    ldh [rDMA], a
-    ld a, OAM_COUNT
-.wait:
-    dec a
-    jr nz, .wait
-    ret
-ENDL
-DMARoutineEnd:
-
-SECTION "Shadow OAM", WRAM0, ALIGN[8]
-wShadowOAM:
-    ds OAM_COUNT * 4
-
-SECTION "Variables", HRAM
-hIsCGB: ds 1
+SECTION "Intro variables", HRAM
+hIntroMode: ds 1
+hIntroDone: ds 1
 hState: ds 1
 hTimer: ds 1
 hFrame: ds 1
@@ -721,11 +677,11 @@ hPtr: ds 2
 hPalReq: ds 1
 hSCY: ds 1
 hWX: ds 1
-hOAMEnd: ds 1
 hAttr: ds 1
 hDotTile: ds 1
 hCount: ds 1
 hButtons: ds 1
+hPressed: ds 1
 hRectY: ds 1
 hRectX: ds 1
 hRectSize: ds 1
