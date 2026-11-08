@@ -114,7 +114,7 @@ halt ─► VBlank ─► OAM DMA, scroll (+ palette or score digits) ─► bui
 * **A score bar that stays clean.** The score is the window layer pinned to the last 8 lines. One line interrupt, timed to land in the HBlank above the bar, switches objects off under it, so webs never draw over the digits.
 * **One pass over the items.** Moving, colliding and drawing happen in a single loop, and only items level with the bee are tested for contact.
 * **Fair by construction.** Rows are spaced by speed so two lane changes always fit between them, and a raindrop is never spawned into the only lane the row ahead leaves open, since it falls fast enough to catch up with it.
-* **Saved on the cartridge.** The best score goes to MBC1 battery RAM with a small signature, so a blank or foreign save starts from zero.
+* **Saved on the cartridge.** The best score goes to MBC1 battery RAM. The signature is written last and every digit is checked on load, so a blank, interrupted or corrupt save starts from zero instead of showing garbage.
 
 ## Project layout 📁
 

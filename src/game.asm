@@ -5,7 +5,8 @@
 ; five points and the distance flown adds one point every ten pixels.
 ;
 ; Efficiency notes:
-; - VBlank is the only interrupt and the CPU sleeps in `halt` until it fires
+; - the CPU sleeps in `halt` until VBlank, the only other interrupt is the
+;   line split above the score bar
 ; - the garden is a static 32x32 map that wraps, scrolling is one register
 ; - the score bar is the window layer pinned to the last 8 lines, so the
 ;   background scrolls under it; a single line interrupt switches objects
@@ -875,7 +876,11 @@ DrawBee:
     ld [hl+], a
     ld a, e
     ld [hl+], a
-    ; shadow, the right half is the left one mirrored
+    ; shadow, the right half is the left one mirrored; once the bee lies on
+    ; the ground it covers its shadow (and the line keeps 2 objects spare)
+    ldh a, [hState]
+    cp ST_DEAD
+    ret z
     ld a, SHADOW_Y + 16
     ld [hl+], a
     ld a, c
@@ -1014,7 +1019,23 @@ LoadBest:
     ld de, wBest
     ld bc, 3
     call Copy
-    jr .close
+    ; only a valid 5 digit BCD number is accepted
+    ld hl, wBest
+    ld b, 3
+.digits:
+    ld a, [hl+]
+    ld c, a
+    and $0F
+    cp 10
+    jr nc, .fresh
+    ld a, c
+    cp $A0
+    jr nc, .fresh
+    dec b
+    jr nz, .digits
+    ld a, [wBest + 2]
+    cp $10
+    jr c, .close
 .fresh:
     xor a
     ld [wBest], a
@@ -1025,19 +1046,22 @@ LoadBest:
     ld [rRAMG], a
     ret
 
+; The signature is cleared first and written last, so a save cut short
+; reads back as no save at all, never as a corrupt score.
 SaveBest:
     ld a, $0A
     ld [rRAMG], a
-    ld hl, _SRAM
-    ld a, $50 ; "P"
-    ld [hl+], a
-    ld a, $4C ; "L"
-    ld [hl+], a
-    ld d, h
-    ld e, l
+    xor a
+    ld [_SRAM], a
     ld hl, wBest
+    ld de, _SRAM + 2
     ld bc, 3
     call Copy
+    ld hl, _SRAM + 1
+    ld a, $4C ; "L"
+    ld [hl-], a
+    ld a, $50 ; "P"
+    ld [hl], a
     xor a
     ld [rRAMG], a
     ret
