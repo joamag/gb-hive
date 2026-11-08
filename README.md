@@ -1,19 +1,19 @@
 <div align="center">
 
-<img src="media/hive-cgb.gif" alt="Hive intro running on the Game Boy Color" width="480">
+<img src="media/hive-cgb.webp" alt="Hive intro running on the Game Boy Color" width="480">
 
 # Hive Game Boy Intro 🐝
 
 **The Hive Solutions logo, brought to life on the Game Boy in pure assembly.**
 
-[![Play in the browser](https://img.shields.io/badge/%E2%96%B6%20Play-in%20Boytacean-214c90?style=for-the-badge)](https://boytacean.joao.me/?rom_url=https://raw.githubusercontent.com/joamag/gb-hive/main/hive.gb)
-[![Download the ROM](https://img.shields.io/badge/Download-hive.gb-5b7fc4?style=for-the-badge)](https://github.com/joamag/gb-hive/raw/main/hive.gb)
+[![Play in the browser](https://img.shields.io/badge/%E2%96%B6%20Play-in%20Boytacean-214c90?style=for-the-badge)](https://boytacean.joao.me/?rom_url=https://raw.githubusercontent.com/joamag/gb-hive/master/hive.gb)
+[![Download the ROM](https://img.shields.io/badge/Download-hive.gb-5b7fc4?style=for-the-badge)](https://github.com/joamag/gb-hive/raw/master/hive.gb)
 
-![Game Boy](https://img.shields.io/badge/Game%20Boy-supported-8bac0f)
-![Game Boy Color](https://img.shields.io/badge/Game%20Boy%20Color-supported-214c90)
-![RGBDS](https://img.shields.io/badge/RGBDS-1.0-e67e22)
-![CPU](https://img.shields.io/badge/CPU%20awake-~4%25%20per%20frame-2ea44f)
-![ROM](https://img.shields.io/badge/ROM-8%20KB%20used-lightgrey)
+[![Game Boy](https://img.shields.io/badge/Game%20Boy-supported-8bac0f)](media/hive-dmg.mp4)
+[![Game Boy Color](https://img.shields.io/badge/Game%20Boy%20Color-supported-214c90)](media/hive-cgb.mp4)
+[![RGBDS](https://img.shields.io/badge/RGBDS-1.0-e67e22)](https://rgbds.gbdev.io)
+[![CPU](https://img.shields.io/badge/CPU%20awake-~4%25%20per%20frame-2ea44f)](#under-the-hood)
+[![ROM](https://img.shields.io/badge/ROM-8%20KB%20used-lightgrey)](#under-the-hood)
 
 </div>
 
@@ -23,7 +23,7 @@ A single `hive.gb` runs on the original Game Boy and on the Game Boy Color. It d
 
 | Game Boy Color | Game Boy |
 | :---: | :---: |
-| <img src="media/hive-cgb.gif" alt="Game Boy Color version" width="320"> | <img src="media/hive-dmg.gif" alt="Game Boy version" width="320"> |
+| <img src="media/hive-cgb.webp" alt="Game Boy Color version" width="320"> | <img src="media/hive-dmg.webp" alt="Game Boy version" width="320"> |
 | [Watch with sound](media/hive-cgb.mp4) | [Watch with sound](media/hive-dmg.mp4) |
 
 ## The show 🎬
@@ -38,8 +38,8 @@ Press **START** or **A** at the end to replay.
 
 ## Play it ▶️
 
-* **In the browser:** open it in [Boytacean](https://boytacean.joao.me/?rom_url=https://raw.githubusercontent.com/joamag/gb-hive/main/hive.gb), it loads straight from this repository in Game Boy Color mode.
-* **Anywhere else:** grab [`hive.gb`](https://github.com/joamag/gb-hive/raw/main/hive.gb) and load it in any emulator or flash cart.
+* **In the browser:** open it in [Boytacean](https://boytacean.joao.me/?rom_url=https://raw.githubusercontent.com/joamag/gb-hive/master/hive.gb), it loads straight from this repository in Game Boy Color mode.
+* **Anywhere else:** grab [`hive.gb`](https://github.com/joamag/gb-hive/raw/master/hive.gb) and load it in any emulator or flash cart.
 
 ## Build 🔧
 
@@ -51,6 +51,8 @@ make clean  # removes the build output
 ```
 
 `make` runs `tools/gen.py` to generate `build/assets.inc` (tiles, maps, palettes and motion tables), then assembles, links and fixes the header of `hive.gb`.
+
+<a name="under-the-hood"></a>
 
 ## Under the hood ⚙️
 
@@ -93,7 +95,7 @@ The tricks that keep it cheap:
 │   └── hardware.inc  the hardware registers used by the ROM
 ├── tools
 │   └── gen.py        generates tiles, maps, palettes and motion tables
-└── media             GIFs and videos recorded with the Boytacean core
+└── media             animations and videos recorded with the Boytacean core
 ```
 
 ## Credits 🙏
